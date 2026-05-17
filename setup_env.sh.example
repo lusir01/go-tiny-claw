@@ -1,0 +1,20 @@
+#!/bin/bash
+# 环境变量配置脚本示例
+# 使用方法:
+#   1. 复制此文件: cp setup_env.sh.example setup_env.sh
+#   2. 填入真实配置值
+#   3. 加载环境变量: source setup_env.sh
+
+# 飞书 Bot 配置
+export FEISHU_APP_ID="your_app_id_here"
+export FEISHU_APP_SECRET="your_app_secret_here"
+
+# 智谱 AI 配置
+export ZHIPU_API_KEY="your_api_key_here"
+export ZHIPU_BASE_URL="https://open.bigmodel.cn/api/paas/v4"
+
+echo "✅ 环境变量已设置："
+echo "   FEISHU_APP_ID=$FEISHU_APP_ID"
+echo "   FEISHU_APP_SECRET=***${FEISHU_APP_SECRET: -8}"
+echo "   ZHIPU_API_KEY=***${ZHIPU_API_KEY: -8}"
+echo "   ZHIPU_BASE_URL=$ZHIPU_BASE_URL"
