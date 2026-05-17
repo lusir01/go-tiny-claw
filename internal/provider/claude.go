@@ -29,7 +29,11 @@ func NewZhipuClaudeProvider(model string) *ClaudeProvider {
 	}
 
 	return &ClaudeProvider{
-		client: anthropic.NewClient(option.WithAPIKey(apiKey), option.WithBaseURL(baseURL)),
+		client: anthropic.NewClient(
+			option.WithoutEnvironmentDefaults(), // 禁止 SDK 读取 ANTHROPIC_* 环境变量
+			option.WithAuthToken(apiKey),
+			option.WithBaseURL(baseURL),
+		),
 		model:  model,
 	}
 }

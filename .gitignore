@@ -2,6 +2,9 @@
 .env
 setup_env.sh
 
+# Claude Code 本地配置（含敏感信息）
+.claude/
+
 # Go 编译产物
 bin/
 *.exe

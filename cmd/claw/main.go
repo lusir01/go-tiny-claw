@@ -26,7 +26,7 @@ func main() {
 	registry.Register(tools.NewEditFileTool(workDir))
 
 	// 开启慢思考
-	eng := engine.NewAgentEngine(llmProvider, registry, workDir, true)
+	eng := engine.NewAgentEngine(llmProvider, registry, workDir, false)
 
 	// 初始化飞书 Bot
 	bot := feishu.NewFeishuBot(eng)

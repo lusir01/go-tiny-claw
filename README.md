@@ -1,4 +1,4 @@
-# Go Tiny Claw
+# Go Tiny Claw（基于极客时间）
 
 一个基于 Go 语言实现的轻量级 AI Agent 框架，支持飞书机器人集成和多种 AI 模型提供商。
 
