@@ -2,10 +2,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/lusir01/go-tiny-claw/internal/engine"
@@ -16,6 +19,7 @@ import (
 
 func main() {
 	workDir, _ := os.Getwd()
+	workDir += "/workspace"
 
 	llmProvider := provider.NewZhipuClaudeProvider("glm-5.1")
 
@@ -25,31 +29,80 @@ func main() {
 	registry.Register(tools.NewBashTool(workDir))
 	registry.Register(tools.NewEditFileTool(workDir))
 
-	// 开启慢思考
-	eng := engine.NewAgentEngine(llmProvider, registry, workDir, false)
+	eng := engine.NewAgentEngine(llmProvider, registry, workDir, true)
 
-	// 初始化飞书 Bot
-	bot := feishu.NewFeishuBot(eng)
-
-	// 创建可取消的 context，用于优雅关闭
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 监听系统信号（Ctrl+C 等）
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	// 在 goroutine 中启动 WebSocket 长连接
-	go func() {
-		log.Println("🚀 go-tiny-claw 正在启动 WebSocket 长连接模式...")
-		if err := bot.StartWebSocket(ctx); err != nil {
-			log.Fatalf("❌ WebSocket 连接失败: %v", err)
-		}
-	}()
+	// 飞书模式：有环境变量时后台启动
+	if os.Getenv("FEISHU_APP_ID") != "" && os.Getenv("FEISHU_APP_SECRET") != "" {
+		bot := feishu.NewFeishuBot(eng)
+		go func() {
+			log.Println("🚀 飞书 WebSocket 长连接模式启动...")
+			if err := bot.StartWebSocket(ctx); err != nil {
+				log.Printf("❌ WebSocket 连接失败: %v\n", err)
+			}
+		}()
+	}
 
-	// 等待退出信号
-	<-sigChan
-	log.Println("\n📴 收到退出信号，正在优雅关闭...")
-	cancel() // 取消 context，触发 WebSocket 断开
-	log.Println("✅ 服务已停止")
+	// 终端交互模式：始终启动
+	fmt.Println("🖥️  Go Tiny Claw 终端模式 (输入 exit 或 quit 退出)")
+	fmt.Println("─────────────────────────────────────────────────")
+
+	reporter := engine.NewTerminalReporter()
+	scanner := bufio.NewScanner(os.Stdin)
+
+	for {
+		fmt.Print("\n> ")
+
+		inputCh := make(chan string, 1)
+		go func() {
+			if scanner.Scan() {
+				inputCh <- scanner.Text()
+			} else {
+				inputCh <- ""
+			}
+		}()
+
+		select {
+		case <-sigChan:
+			fmt.Println("\n📴 再见！")
+			cancel()
+			return
+		case input := <-inputCh:
+			input = strings.TrimSpace(input)
+			if input == "" {
+				continue
+			}
+			if input == "exit" || input == "quit" {
+				fmt.Println("📴 再见！")
+				cancel()
+				return
+			}
+
+			runCtx, runCancel := context.WithCancel(ctx)
+			done := make(chan struct{})
+
+			go func() {
+				defer close(done)
+				if err := eng.Run(runCtx, input, reporter); err != nil && runCtx.Err() == nil {
+					log.Printf("❌ Agent 运行失败: %v\n", err)
+				}
+			}()
+
+			select {
+			case <-done:
+				runCancel()
+			case <-sigChan:
+				runCancel()
+				<-done
+				fmt.Println("\n📴 再见！")
+				cancel()
+				return
+			}
+		}
+	}
 }
